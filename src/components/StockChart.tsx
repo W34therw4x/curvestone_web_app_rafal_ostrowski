@@ -7,9 +7,9 @@ import AnnotationsAdvanced from "highcharts/modules/annotations-advanced.js";
 import PriceIndicator from "highcharts/modules/price-indicator.js";
 import FullScreen from "highcharts/modules/full-screen.js";
 import StockTools from "highcharts/modules/stock-tools.js";
-import { IAssetStats } from "./App";
+import { IAssetStats } from "../App";
 import "./stockchart.css";
-import { getStockChartTitle } from "./stock-helpers";
+import { getStockChartTitle } from "../stock-helpers";
 
 Indicators(Highcharts);
 DragPanes(Highcharts);

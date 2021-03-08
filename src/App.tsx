@@ -1,5 +1,4 @@
-import React, { useState } from "react";
-import ky from "ky";
+import React, { useContext, useState } from "react";
 import {
   Button,
   Container,
@@ -11,7 +10,12 @@ import {
   InputLabel,
 } from "@material-ui/core";
 import ProgressBar from "./ProgressBar";
-import { StockChart } from "./StockChart";
+import { StockChart } from "./components/StockChart";
+import {
+  AssetsStatsContext,
+  AssetsStatsProvider,
+} from "./contexts/AssetsContext";
+import { RequestStatus } from "./store/assets-stats/assets-stats-reducer";
 
 const useStyles = makeStyles((theme) => ({
   paper: {
@@ -41,7 +45,7 @@ interface IAssets {
   [key: string]: string;
 }
 
-interface IAssetsStatsByName {
+export interface IAssetsStatsByName {
   [key: string]: IAssetStats[];
 }
 
@@ -53,8 +57,7 @@ export interface IAssetStats {
   close: number;
 }
 
-const App = () => {
-  const [loading, setLoading] = useState<boolean>(false);
+const AppComponent = () => {
   const [date, setDate] = useState<string>();
   const [balance, setBalance] = useState<string>("");
   const [assets, setAssets] = useState<IAssets>({
@@ -65,21 +68,14 @@ const App = () => {
     symbol3: "",
     allocation3: "",
   });
-  const [stats, setStats] = useState<IAssetsStatsByName>();
-
-  const getAssetsStats = async () => {
-    const response = (await ky
-      .post("http://localhost:3000/eod", {
-        json: {
-          dateFrom: date,
-          symbols: [assets.symbol1, assets.symbol2, assets.symbol3],
-        },
-      })
-      .json()) as { data: IAssetsStatsByName };
-
-    return response.data;
-  };
-
+  const {
+    assetsStats,
+    status,
+    error,
+    queryAssetsStats,
+    resetAssetsStats,
+  } = useContext(AssetsStatsContext);
+  if (error) console.log(error); // not handling it now..
   const handleAssetsChange = (prop: keyof IAssets) => (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -88,10 +84,8 @@ const App = () => {
 
   const handleForm = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setLoading(true);
-    const assetsStats = await getAssetsStats();
-    setStats(assetsStats);
-    setLoading(false);
+    if (!date) return;
+    queryAssetsStats(date, [assets.symbol1, assets.symbol2, assets.symbol3]);
   };
 
   //bare minimum validation
@@ -103,8 +97,8 @@ const App = () => {
   const classes = useStyles();
   return (
     <>
-      {loading && <ProgressBar />}
-      {!loading && !stats && (
+      {status === RequestStatus.Loading && <ProgressBar />}
+      {status === RequestStatus.Init && (
         <Container component="main" maxWidth="lg">
           <div className={classes.paper}>
             <form className={classes.form} onSubmit={handleForm}>
@@ -221,17 +215,17 @@ const App = () => {
           </div>
         </Container>
       )}
-      {!loading && stats && (
+      {status === RequestStatus.Success && assetsStats && (
         <>
           <Button
             size="large"
             variant="contained"
             color="secondary"
-            onClick={() => setStats(undefined)}
+            onClick={() => resetAssetsStats()}
           >
             BACK
           </Button>
-          {Object.entries(stats).map(([name, stats]) => {
+          {Object.entries(assetsStats).map(([name, stats]) => {
             // this logic here is particulary ugly...
             // the way I keep 'assets' state with hardcoded keys force me to dig allocation key this way
             // so finding relation between symbol1 and allocation1
@@ -261,6 +255,14 @@ const App = () => {
         </>
       )}
     </>
+  );
+};
+
+const App = (props: any) => {
+  return (
+    <AssetsStatsProvider>
+      <AppComponent {...props}></AppComponent>
+    </AssetsStatsProvider>
   );
 };
 
